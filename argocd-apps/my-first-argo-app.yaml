@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-first-chart
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/AlirezaMohammadpour85/ArgoCD_Test2.git
+    targetRevision: main
+    path: charts/my-first-chart-l18
+    helm:
+      releaseName: demo
+      valueFiles:
+        - values-prod.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: helm-lab
+
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
