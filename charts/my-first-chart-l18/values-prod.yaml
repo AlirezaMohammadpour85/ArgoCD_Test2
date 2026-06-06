@@ -2,7 +2,7 @@ app:
   environment: production
   message: Hello from production nested values
 
-replicaCount: 3
+replicaCount: 4
 
 image:
   repository: nginx
