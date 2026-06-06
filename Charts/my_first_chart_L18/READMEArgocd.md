@@ -182,3 +182,89 @@ helm template demo charts/my-first-chart -f charts/my-first-chart/values-prod.ya
 After that, we will create the Argo CD Application manifest.
 
 
+# Note
+Argo CD does not automatically create an app for every folder unless you use ApplicationSet. Normally, you create an Argo CD Application that points to one folder/path.
+
+Simple production idea
+
+Example Git repo:
+
+gitops-repo/
+├── apps/
+│   ├── frontend/
+│   │   ├── Chart.yaml
+│   │   ├── values-dev.yaml
+│   │   ├── values-prod.yaml
+│   │   └── templates/
+│   ├── backend/
+│   │   ├── Chart.yaml
+│   │   ├── values-dev.yaml
+│   │   ├── values-prod.yaml
+│   │   └── templates/
+│   └── worker/
+│       ├── Chart.yaml
+│       ├── values-dev.yaml
+│       ├── values-prod.yaml
+│       └── templates/
+└── argocd-apps/
+    ├── frontend-dev.yaml
+    ├── frontend-prod.yaml
+    ├── backend-dev.yaml
+    └── backend-prod.yaml
+
+Each Argo CD Application points to one path, for example:
+
+source:
+  repoURL: https://github.com/your-user/gitops-repo.git
+  targetRevision: main
+  path: apps/frontend
+  helm:
+    valueFiles:
+      - values-prod.yaml
+
+So this Argo CD app manages only:
+
+apps/frontend
+
+Another Argo CD app could manage:
+
+apps/backend
+For your current lab
+
+Your repo has only one chart:
+
+my-first-chart-lesson11/
+├── Chart.yaml
+├── values.yaml
+├── values-prod.yaml
+└── templates/
+
+So this is fine. Argo CD can point directly to the repo root:
+
+path: .
+
+Later, when you have multiple projects, use folders like:
+
+charts/frontend
+charts/backend
+charts/worker
+
+Then Argo CD can manage them separately.
+
+Important mental model
+One Argo CD Application = one desired application state
+
+That usually means:
+
+one app + one environment
+
+For example:
+
+frontend-dev
+frontend-prod
+backend-dev
+backend-prod
+
+So yes, in real production, you usually separate projects and environments clearly in Git. For now, keep one chart at repo root so we can learn the Argo CD flow simply.
+
+### 
