@@ -1,0 +1,19 @@
+app:
+  environment: default
+  message: Hello from default nested values
+
+replicaCount: 1
+
+image:
+  repository: nginx
+  tag: "1.27"
+  pullPolicy: IfNotPresent
+
+containerPort: 80
+
+# =====================================
+#             Service vars
+# =====================================
+service:
+  type: ClusterIP
+  port: 80

@@ -1,0 +1,17 @@
+app:
+  environment: production
+  message: Hello from production nested values
+
+replicaCount: 3
+
+image:
+  repository: nginx
+  tag: "1.27-alpine"
+  pullPolicy: IfNotPresent
+
+containerPort: 80
+
+# Service vals
+service:
+  type: ClusterIP
+  port: 80
