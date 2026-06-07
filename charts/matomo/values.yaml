@@ -55,7 +55,9 @@ database:
   secretName: matomo-db-auth
   passwordKey: mysql-password
   rootPasswordKey: mysql-root-password
-  storageSize: 100Gi
+  password: staging
+  rootPassword: rootpwd
+  storageSize: 20Gi
   volumeName: db-data
   mountPath: /var/lib/mysql
   sidecarIstioInject: "false"
