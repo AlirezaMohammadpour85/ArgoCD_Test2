@@ -1,23 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: my-first-chart
+  name: matomo
   namespace: argocd
 spec:
   project: default
 
   source:
     repoURL: https://github.com/AlirezaMohammadpour85/ArgoCD_Test2.git
-    targetRevision: main
-    path: charts/my-first-chart-l18
+    targetRevision: matomo
+    path: charts/matomo
     helm:
-      releaseName: demo
+      releaseName: matomo
       valueFiles:
-        - values-prod.yaml
+        - values.yaml
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: helm-lab
+    namespace: matomo
 
   syncPolicy:
     automated:
