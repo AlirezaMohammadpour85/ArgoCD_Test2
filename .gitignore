@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Editor and IDE settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment and local override files
+.env
+.env.*
+*.local
+values.local.yaml
+values.*.local.yaml
+secrets.yaml
+secret-values.yaml
+
+# Helm package artifacts
+*.tgz
+*.prov
+
+# Helm dependency/cache files generated locally
+.helm/
+
+# Rendered Kubernetes manifests and temporary output
+rendered/
+manifests/
+out/
+tmp/
+*.rendered.yaml

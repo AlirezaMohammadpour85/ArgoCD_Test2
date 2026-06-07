@@ -1,0 +1,85 @@
+name: matomo
+
+image:
+  repository: matomo
+  tag: 5-apache
+  pullPolicy: IfNotPresent
+
+containerName: matomo
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  httpPort: 8080
+  httpsPort: 8443
+  httpTargetPort: 80
+  httpsTargetPort: 443
+
+persistence:
+  size: 20Gi
+  mountPath: /var/www/html
+
+securityContext:
+  fsGroup: 33
+  seccompProfileType: RuntimeDefault
+
+hostAlias:
+  ip: "127.0.0.1"
+  hostname: "status.localhost"
+
+matomoLabels:
+  allowMysql: "true"
+  allowIstioIngress8080: "true"
+  allowSmtpSubmission: "true"
+  allowCloudfrontEgress: "true"
+  allowCloudflareEgress: "true"
+  allowSoftgardenEgress: "true"
+
+matomoDatabase:
+  adapter: mysql
+  tablePrefix: matomo_
+
+database:
+  name: matomo-db
+  containerName: mysql
+  image:
+    repository: percona
+    tag: "8.0"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 3306
+  nodePort: 32154
+  database: matomo
+  username: matomo
+  secretName: matomo-db-auth
+  passwordKey: mysql-password
+  rootPasswordKey: mysql-root-password
+  storageSize: 100Gi
+  volumeName: db-data
+  mountPath: /var/lib/mysql
+  sidecarIstioInject: "false"
+  securityContext:
+    fsGroup: 999
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 999
+    seccompProfileType: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    dropCapabilities: ALL
+  resources:
+    memory: 2Gi
+    cpu: "1"
+  args:
+    disableLogBin: --disable-log-bin
+    maxAllowedPacket: --max-allowed-packet=90M
+    maxConnections: --max-connections=1000
+    characterSetServer: --character-set-server=utf8mb4
+    collationServer: --collation-server=utf8mb4_general_ci
+    sqlMode: --sql-mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO
+    pidFile: --pid-file=/var/lib/mysql/mysqld.pid
+    localInfile: --local-infile=ON
+
+network:
+  matomoEgressCidr: 185.31.40.177/32

@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/AlirezaMohammadpour85/ArgoCD_Test2.git
     targetRevision: matomo
-    path: charts/matomo
+    path: charts/matomo/
     helm:
       releaseName: matomo
       valueFiles:

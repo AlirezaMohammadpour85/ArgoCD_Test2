@@ -584,5 +584,342 @@ kubectl get app my-first-chart -n argocd
 kubectl describe app my-first-chart -n argocd | sed -n '/Status:/,$p'
 
 
-### 
+### so, in the concept of using argocd , we generally will not use helm alot, we only use the helm feature as areplacing the jinja2 templating or GO templating to be abkle use the vars inside the git and then argo will apply the changes
 
+Yes — your understanding is mostly correct.
+
+In an Argo CD GitOps workflow, you usually do not use Helm from your terminal every day to deploy changes.
+
+Instead, Helm becomes the manifest generator / template engine.
+
+Your new mental model
+
+Before Argo CD:
+
+helm upgrade demo . -f values-prod.yaml
+        ↓
+Helm talks directly to Kubernetes
+        ↓
+Cluster changes
+
+With Argo CD:
+
+Git repo
+  ├── Chart.yaml
+  ├── templates/
+  └── values-prod.yaml
+        ↓
+Argo CD reads Git
+        ↓
+Argo CD runs Helm template/render internally
+        ↓
+Argo CD applies generated YAML to Kubernetes
+
+So yes:
+
+Helm = templating + variables + packaging structure
+Argo CD = sync engine + GitOps controller + deployment manager
+Important correction
+
+Helm is not exactly “replacing Jinja2.” It is using Go templating, not Jinja2.
+
+So in your case:
+
+replicas: {{ .Values.replicaCount }}
+image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+
+Helm renders that into normal Kubernetes YAML:
+
+replicas: 4
+image: "nginx:1.27-alpine"
+
+Then Argo CD applies it.
+
+What you still use Helm for
+
+Even with Argo CD, you still use Helm locally for testing:
+
+helm template demo charts/my-first-chart-l18 -f charts/my-first-chart-l18/values-prod.yaml
+helm lint charts/my-first-chart-l18
+
+But you usually do not use this for deployment anymore:
+
+helm upgrade demo ...
+
+Because deployment is now Argo CD’s job.
+
+Production workflow
+
+A normal change becomes:
+
+1. Edit values-prod.yaml
+2. git add / commit / push
+3. Argo CD detects OutOfSync
+4. Argo CD syncs manually or automatically
+5. Kubernetes matches Git
+
+Example:
+
+replicaCount: 4
+image:
+  tag: "1.28-alpine"
+
+After push, Argo CD renders the Helm chart and applies the changed Deployment.
+
+Very important GitOps rule
+
+Avoid doing this after Argo CD manages the app:
+
+helm upgrade demo ...
+kubectl edit deployment demo ...
+kubectl scale deployment demo ...
+
+Because those are manual cluster changes. Argo CD may mark the app as OutOfSync, and if self-heal is enabled, it will revert the cluster back to Git.
+
+So your final concept is:
+
+Git is the source of truth.
+Helm helps generate Kubernetes YAML from variables.
+Argo CD makes the cluster match Git.
+
+### Lesson 22 — Manual cluster change vs Git desired state
+
+Argo CD’s job is to compare:
+
+Desired state = Git
+Live state    = Kubernetes cluster
+
+If they differ, the app becomes:
+
+OutOfSync
+Current situation
+
+Your Git has something like:
+
+replicaCount: 4
+
+or maybe 3, depending on your last pushed values-prod.yaml.
+
+Your cluster should match that after Argo CD sync.
+
+First check the current state:
+
+kubectl get app my-first-chart -n argocd
+kubectl get deployment demo -n helm-lab
+
+Now we will intentionally create drift.
+
+Step 1 — Manually scale the Deployment
+
+Run:
+
+kubectl scale deployment demo -n helm-lab --replicas=1
+
+Then check:
+
+kubectl get deployment demo -n helm-lab
+kubectl get pods -n helm-lab
+kubectl get app my-first-chart -n argocd
+
+At first, Argo CD may still show Synced until it refreshes. Force refresh:
+
+kubectl annotate app my-first-chart -n argocd \
+  argocd.argoproj.io/refresh=hard \
+  --overwrite
+
+Then check again:
+
+kubectl get app my-first-chart -n argocd
+Prediction before running
+
+Answer these first:
+
+After kubectl scale --replicas=1, how many Pods will Kubernetes try to keep?
+Will Git change?
+Will Argo CD eventually see the app as OutOfSync?
+If you click Sync in Argo CD GUI, what replica count will it restore?
+
+This lesson teaches the core GitOps rule:
+
+Manual cluster changes are temporary.
+Git is the source of truth.
+
+
+### Lesson 23 — Enable automatic sync and self-heal
+
+Right now, your app probably requires manual sync from the GUI.
+
+Now we will make Argo CD automatically apply Git changes.
+
+Current behavior
+
+Without automated sync:
+
+Git changes
+   ↓
+Argo CD sees OutOfSync
+   ↓
+You manually click Sync
+   ↓
+Cluster updates
+
+With automated sync:
+
+Git changes
+   ↓
+Argo CD sees OutOfSync
+   ↓
+Argo CD syncs automatically
+   ↓
+Cluster updates
+
+With self-heal:
+
+Someone manually changes cluster
+   ↓
+Argo CD detects drift
+   ↓
+Argo CD restores Git state
+Update your Argo CD Application
+
+Edit your Application YAML:
+
+nano argocd-apps/my-first-chart-app.yaml
+
+Change syncPolicy to this:
+
+syncPolicy:
+  automated:
+    prune: true
+    selfHeal: true
+  syncOptions:
+    - CreateNamespace=true
+
+So the full important part becomes:
+
+spec:
+  source:
+    repoURL: https://github.com/AlirezaMohammadpour85/ArgoCD_Test2.git
+    targetRevision: main
+    path: charts/my-first-chart-l18
+    helm:
+      releaseName: demo
+      valueFiles:
+        - values-prod.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: helm-lab
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+Apply it:
+
+kubectl apply -f argocd-apps/my-first-chart-app.yaml
+
+Check:
+
+kubectl get app my-first-chart -n argocd -o yaml | grep -A8 syncPolicy
+What do prune and selfHeal mean?
+
+selfHeal: true
+
+If someone changes the live cluster manually, Argo CD changes it back to Git.
+
+Example:
+
+kubectl scale deployment demo -n helm-lab --replicas=1
+
+If Git says:
+
+replicaCount: 4
+
+Argo CD will restore it to 4.
+
+prune: true
+
+If you remove a resource from Git, Argo CD deletes it from the cluster.
+
+Example: if you delete templates/configmap.yml from Git and push, Argo CD will delete:
+
+configmap/demo-config
+
+from Kubernetes.
+
+Prediction
+
+Before testing, answer these:
+
+If Git says replicaCount: 4 and you manually scale to 1, what should Argo CD do?
+If you delete service.yaml from Git and push, what should Argo CD do because prune: true is enabled?
+Why is selfHeal useful in production?
+Why can prune be dangerous if you delete the wrong file from Git?
+
+
+### Lesson 24 — Test self-heal
+
+Now apply the updated Application manifest:
+
+kubectl apply -f argocd-apps/my-first-chart-app.yaml
+
+Check that automated sync is enabled:
+
+kubectl get app my-first-chart -n argocd -o yaml | grep -A8 syncPolicy
+
+You should see:
+
+syncPolicy:
+  automated:
+    prune: true
+    selfHeal: true
+  syncOptions:
+  - CreateNamespace=true
+
+Now create drift manually:
+
+kubectl scale deployment demo -n helm-lab --replicas=1
+
+Check immediately:
+
+kubectl get deployment demo -n helm-lab
+kubectl get pods -n helm-lab
+
+Then refresh Argo CD:
+
+kubectl annotate app my-first-chart -n argocd \
+  argocd.argoproj.io/refresh=hard \
+  --overwrite
+
+Check again:
+
+kubectl get deployment demo -n helm-lab
+kubectl get app my-first-chart -n argocd
+What should happen
+
+First, Kubernetes accepts your manual change:
+
+replicas: 1
+
+Then Argo CD detects that live state differs from Git and restores it back to the replica count in values-prod.yaml.
+
+So if Git says:
+
+replicaCount: 4
+
+the Deployment should return to:
+
+4/4
+Prediction before running
+
+Answer this first:
+
+When you run:
+
+kubectl scale deployment demo -n helm-lab --replicas=1
+
+will the command itself fail because Argo CD controls the app, or will it succeed and then Argo CD later correct it?

@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.database.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.database.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.database.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.database.name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.database.name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        sidecar.istio.io/inject: {{ .Values.database.sidecarIstioInject | quote }}
+    spec:
+      securityContext:
+        fsGroup: {{ .Values.database.securityContext.fsGroup }}
+        runAsNonRoot: {{ .Values.database.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.database.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.database.securityContext.runAsGroup }}
+        seccompProfile:
+          type: {{ .Values.database.securityContext.seccompProfileType }}
+      containers:
+        - name: {{ .Values.database.containerName }}
+          image: "{{ .Values.database.image.repository }}:{{ .Values.database.image.tag }}"
+          imagePullPolicy: {{ .Values.database.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: {{ .Values.database.containerSecurityContext.allowPrivilegeEscalation }}
+            capabilities:
+              drop:
+                - {{ .Values.database.containerSecurityContext.dropCapabilities }}
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName }}
+                  key: {{ .Values.database.rootPasswordKey }}
+            - name: MYSQL_DATABASE
+              value: {{ .Values.database.database | quote }}
+            - name: MYSQL_USER
+              value: {{ .Values.database.username | quote }}
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName }}
+                  key: {{ .Values.database.passwordKey }}
+          args:
+            - {{ .Values.database.args.disableLogBin }}
+            - {{ .Values.database.args.maxAllowedPacket }}
+            - {{ .Values.database.args.maxConnections }}
+            - {{ .Values.database.args.characterSetServer }}
+            - {{ .Values.database.args.collationServer }}
+            - {{ .Values.database.args.sqlMode }}
+            - {{ .Values.database.args.pidFile }}
+            - {{ .Values.database.args.localInfile }}
+          ports:
+            - name: mysql
+              containerPort: {{ .Values.database.port }}
+          volumeMounts:
+            - mountPath: {{ .Values.database.mountPath }}
+              name: {{ .Values.database.volumeName }}
+          resources:
+            limits:
+              memory: {{ .Values.database.resources.memory | quote }}
+              cpu: {{ .Values.database.resources.cpu | quote }}
+            requests:
+              memory: {{ .Values.database.resources.memory | quote }}
+              cpu: {{ .Values.database.resources.cpu | quote }}
+      volumes:
+        - name: {{ .Values.database.volumeName }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.database.name }}-data

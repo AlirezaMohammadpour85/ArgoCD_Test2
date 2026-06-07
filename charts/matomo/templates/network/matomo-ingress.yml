@@ -1,0 +1,16 @@
+# Required until Istio is in use on staging.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Values.name }}-ingress-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  ingress:
+    - ports:
+        - port: {{ .Values.service.httpTargetPort }}
+        - port: {{ .Values.service.httpsTargetPort }}
+  policyTypes:
+    - Ingress
