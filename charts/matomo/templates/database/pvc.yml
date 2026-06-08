@@ -4,7 +4,7 @@ metadata:
   name: {{ .Values.database.name }}-data
   labels:
     app.kubernetes.io/name: {{ .Values.database.name }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Values.database.image.tag | quote }}
 spec:
   accessModes:
     - ReadWriteOnce

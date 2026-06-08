@@ -71,8 +71,12 @@ database:
     allowPrivilegeEscalation: false
     dropCapabilities: ALL
   resources:
-    memory: 2Gi
-    cpu: "1"
+    limits:
+      memory: 2Gi
+      cpu: "1"
+    requests:
+      memory: 2Gi
+      cpu: "1"
   args:
     disableLogBin: --disable-log-bin
     maxAllowedPacket: --max-allowed-packet=90M

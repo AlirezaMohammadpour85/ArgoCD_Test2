@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-{{ .Values.database.name }}-egress
+spec:
+  podSelector:
+    matchLabels:
+      networking/allow-matomo-mysql: "true"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ .Values.database.name }}
+              app.kubernetes.io/version: {{ .Values.database.image.tag | quote }}
+      ports:
+        - port: {{ .Values.database.port }}

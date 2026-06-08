@@ -4,12 +4,12 @@ metadata:
   name: {{ .Values.database.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.database.name }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Values.database.image.tag | quote }}
 spec:
   type: NodePort
   selector:
     app.kubernetes.io/name: {{ .Values.database.name }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Values.database.image.tag | quote }}
   ports:
     - port: {{ .Values.database.port }}
       targetPort: mysql
